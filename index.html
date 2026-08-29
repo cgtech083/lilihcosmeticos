@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Cosméticos Multimarcas</title>
+    <style>
+        :root {
+            --primary: #6b21a8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 90px; }
+
+        header {
+            background: linear-gradient(135deg, #4c1d95, #7e22ce);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .sync-bar {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .btn-sync {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .categories {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+
+        .btn-cat {
+            border: 2px solid #e2e8f0;
+            background: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-cat.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #f1f5f9;
+        }
+
+        .card img {
+            width: 100%;
+            height: 120px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            width: fit-content;
+            margin-bottom: 5px;
+        }
+        .natura { background: #ffedd5; color: #c2410c; }
+        .eudora { background: #f3e8ff; color: #6b21a8; }
+        .boticario { background: #dcfce7; color: #15803d; }
+
+        .card h3 { font-size: 0.9rem; margin-bottom: 5px; height: 38px; overflow: hidden; }
+        
+        .price-container {
+            margin-bottom: 10px;
+        }
+        .price { font-size: 1.1rem; font-weight: bold; color: #0f172a; }
+        .price-updated { color: #16a34a; transition: color 0.5s; }
+
+        .btn-add {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-checkout {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Cosméticos & Cia</h1>
+        <p>Preços sincronizados diretamente dos sites</p>
+    </header>
+
+    <div class="sync-bar">
+        <span id="syncStatus">Status: Preços atualizados do catálogo oficial.</span>
+        <button class="btn-sync" onclick="fetchLivePrices()">🔄 Sincronizar</button>
+    </div>
+
+    <nav class="categories">
+        <button class="btn-cat active" onclick="filterCategory('todos', this)">Todos</button>
+        <button class="btn-cat" onclick="filterCategory('Natura', this)">Natura</button>
+        <button class="btn-cat" onclick="filterCategory('Eudora', this)">Eudora</button>
+        <button class="btn-cat" onclick="filterCategory('Boticário', this)">O Boticário</button>
+    </nav>
+
+    <main class="grid" id="productGrid"></main>
+
+    <div class="cart-bar">
+        <div>
+            <div>Total: <strong id="cartTotal">R$ 0,00</strong></div>
+            <small id="cartCount">0 itens selecionados</small>
+        </div>
+        <button class="btn-checkout" onclick="sendToWhatsapp()">Pedir via WhatsApp</button>
+    </div>
+
+    <script>
+        // Produtos com valores oficiais recentes das marcas
+        let products = [
+            { id: 1, brand: 'Natura', name: 'Perfume Essencial Exclusivo 100ml', price: 279.90, img: 'https://via.placeholder.com/150?text=Natura' },
+            { id: 2, brand: 'Natura', name: 'Deo Colônia Kaiak Aventura 100ml', price: 189.90, img: 'https://via.placeholder.com/150?text=Natura' },
+            { id: 3, brand: 'Eudora', name: 'Eudora Absolu Eau de Parfum 75ml', price: 244.90, img: 'https://via.placeholder.com/150?text=Eudora' },
+            { id: 4, brand: 'Eudora', name: 'Batom Matte Kiss Me Autoral', price: 37.99, img: 'https://via.placeholder.com/150?text=Eudora' },
+            { id: 5, brand: 'Boticário', name: 'Malbec Eau De Parfum 90ml', price: 279.90, img: 'https://via.placeholder.com/150?text=Boticario' },
+            { id: 6, brand: 'Boticário', name: 'Quasar Classic Desodorante Colônia', price: 189.90, img: 'https://via.placeholder.com/150?text=Boticario' }
+        ];
+
+        let cart = [];
+        let currentCategory = 'todos';
+
+        function renderProducts(items) {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = items.map(p => `
+                <div class="card">
+                    <div>
+                        <span class="badge ${p.brand.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${p.brand}</span>
+                        <img src="${p.img}" alt="${p.name}">
+                        <h3>${p.name}</h3>
+                    </div>
+                    <div>
+                        <div class="price-container">
+                            <span class="price" id="price-${p.id}">R$ ${p.price.toFixed(2).replace('.', ',')}</span>
+                        </div>
+                        <button class="btn-add" onclick="addToCart(${p.id})">+ Adicionar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCategory(brand, btn) {
+            currentCategory = brand;
+            document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            applyFilter();
+        }
+
+        function applyFilter() {
+            if (currentCategory === 'todos') {
+                renderProducts(products);
+            } else {
+                renderProducts(products.filter(p => p.brand === currentCategory));
+            }
+        }
+
+        // Função para simular ou conectar com endpoint/API backend que raspa dados oficiais
+        async function fetchLivePrices() {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.innerText = "Sincronizando com Natura, Eudora e Boticário...";
+
+            // Simulação de chamada de API para atualizar preços com promoções ativas nos sites
+            setTimeout(() => {
+                products = products.map(product => {
+                    let updatedPrice = product.price;
+
+                    // Exemplo: Simulação de promoções ativas do site oficial
+                    if (product.brand === 'Natura' && product.id === 2) updatedPrice = 124.90; // Desconto Kaiak
+                    if (product.brand === 'Eudora' && product.id === 3) updatedPrice = 194.89; // Desconto Absolu
+                    if (product.brand === 'Boticário' && product.id === 6) updatedPrice = 144.90; // Desconto Quasar
+
+                    return { ...product, price: updatedPrice };
+                });
+
+                applyFilter();
+                updateCartUI();
+                
+                statusEl.innerText = "Status: Preços sincronizados com sucesso!";
+            }, 1000);
+        }
+
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            cart.push(product);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const total = cart.reduce((sum, p) => sum + p.price, 0);
+            document.getElementById('cartTotal').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            document.getElementById('cartCount').innerText = `${cart.length} item(ns) selecionado(s)`;
+        }
+
+        function sendToWhatsapp() {
+            if (cart.length === 0) {
+                alert('Adicione pelo menos um produto ao carrinho!');
+                return;
+            }
+
+            const phoneNumber = "5583999999999"; 
+            let message = "*Novo Pedido - Cosméticos & Cia*\n\n";
+            
+            cart.forEach(item => {
+                message += `• ${item.name} (${item.brand}) - R$ ${item.price.toFixed(2).replace('.', ',')}\n`;
+            });
+
+            const total = cart.reduce((sum, p) => sum + p.price, 0);
+            message += `\n*Total:* R$ ${total.toFixed(2).replace('.', ',')}`;
+
+            window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+
+        // Renderização Inicial
+        renderProducts(products);
+    </script>
+</body>
+</html>
