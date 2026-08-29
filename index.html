@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lilih Cosméticos</title>
+    <title>Catálogo de Cosméticos Multimarcas</title>
     <style>
         :root {
             --primary: #6b21a8;
@@ -18,12 +18,48 @@
         header {
             background: linear-gradient(135deg, #4c1d95, #7e22ce);
             color: white;
-            padding: 20px;
+            padding: 20px 15px;
             text-align: center;
             position: sticky;
             top: 0;
             z-index: 100;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        header p { font-size: 0.85rem; opacity: 0.9; }
+
+        /* Estilos da Barra de Pesquisa */
+        .search-container {
+            max-width: 600px;
+            margin: 15px auto 5px auto;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid transparent;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            outline: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #a855f7;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 1.1rem;
+            pointer-events: none;
         }
 
         .sync-bar {
@@ -85,6 +121,14 @@
             margin: 0 auto;
         }
 
+        .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+            font-size: 1rem;
+        }
+
         .card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -119,11 +163,8 @@
 
         .card h3 { font-size: 0.9rem; margin-bottom: 5px; height: 38px; overflow: hidden; }
         
-        .price-container {
-            margin-bottom: 10px;
-        }
+        .price-container { margin-bottom: 10px; }
         .price { font-size: 1.1rem; font-weight: bold; color: #0f172a; }
-        .price-updated { color: #16a34a; transition: color 0.5s; }
 
         .btn-add {
             background: #10b981;
@@ -164,8 +205,19 @@
 <body>
 
     <header>
-        <h1>Lilih Cosméticos</h1>
+        <h1>Cosméticos & Cia</h1>
         <p>Preços sincronizados diretamente dos sites</p>
+        
+        <div class="search-container">
+            <input 
+                type="text" 
+                id="searchInput" 
+                class="search-input" 
+                placeholder="Pesquisar produto (ex: Malbec, Kaiak)..." 
+                oninput="handleSearch()"
+            >
+            <span class="search-icon">🔍</span>
+        </div>
     </header>
 
     <div class="sync-bar">
@@ -191,7 +243,6 @@
     </div>
 
     <script>
-        // Produtos com valores oficiais recentes das marcas
         let products = [
             { id: 1, brand: 'Natura', name: 'Perfume Essencial Exclusivo 100ml', price: 279.90, img: 'https://via.placeholder.com/150?text=Natura' },
             { id: 2, brand: 'Natura', name: 'Deo Colônia Kaiak Aventura 100ml', price: 189.90, img: 'https://via.placeholder.com/150?text=Natura' },
@@ -203,9 +254,16 @@
 
         let cart = [];
         let currentCategory = 'todos';
+        let searchQuery = '';
 
         function renderProducts(items) {
             const grid = document.getElementById('productGrid');
+            
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="no-results">Nenhum produto encontrado para sua busca.</div>`;
+                return;
+            }
+
             grid.innerHTML = items.map(p => `
                 <div class="card">
                     <div>
@@ -215,7 +273,7 @@
                     </div>
                     <div>
                         <div class="price-container">
-                            <span class="price" id="price-${p.id}">R$ ${p.price.toFixed(2).replace('.', ',')}</span>
+                            <span class="price">R$ ${p.price.toFixed(2).replace('.', ',')}</span>
                         </div>
                         <button class="btn-add" onclick="addToCart(${p.id})">+ Adicionar</button>
                     </div>
@@ -223,43 +281,53 @@
             `).join('');
         }
 
+        // Filtra por Categoria e por Pesquisa Textual simultaneamente
+        function applyFilters() {
+            let filtered = products;
+
+            if (currentCategory !== 'todos') {
+                filtered = filtered.filter(p => p.brand === currentCategory);
+            }
+
+            if (searchQuery.trim() !== '') {
+                const query = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                filtered = filtered.filter(p => {
+                    const nameNormalized = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const brandNormalized = p.brand.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return nameNormalized.includes(query) || brandNormalized.includes(query);
+                });
+            }
+
+            renderProducts(filtered);
+        }
+
         function filterCategory(brand, btn) {
             currentCategory = brand;
             document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
-            applyFilter();
+            applyFilters();
         }
 
-        function applyFilter() {
-            if (currentCategory === 'todos') {
-                renderProducts(products);
-            } else {
-                renderProducts(products.filter(p => p.brand === currentCategory));
-            }
+        function handleSearch() {
+            searchQuery = document.getElementById('searchInput').value;
+            applyFilters();
         }
 
-        // Função para simular ou conectar com endpoint/API backend que raspa dados oficiais
         async function fetchLivePrices() {
             const statusEl = document.getElementById('syncStatus');
             statusEl.innerText = "Sincronizando com Natura, Eudora e Boticário...";
 
-            // Simulação de chamada de API para atualizar preços com promoções ativas nos sites
             setTimeout(() => {
                 products = products.map(product => {
                     let updatedPrice = product.price;
-
-                    // Exemplo: Simulação de promoções ativas do site oficial
-                    if (product.brand === 'Natura' && product.id === 2) updatedPrice = 124.90; // Desconto Kaiak
-                    if (product.brand === 'Eudora' && product.id === 3) updatedPrice = 194.89; // Desconto Absolu
-                    if (product.brand === 'Boticário' && product.id === 6) updatedPrice = 144.90; // Desconto Quasar
-
+                    if (product.brand === 'Natura' && product.id === 2) updatedPrice = 124.90;
+                    if (product.brand === 'Eudora' && product.id === 3) updatedPrice = 194.89;
+                    if (product.brand === 'Boticário' && product.id === 6) updatedPrice = 144.90;
                     return { ...product, price: updatedPrice };
                 });
 
-                applyFilter();
+                applyFilters();
                 updateCartUI();
-                
                 statusEl.innerText = "Status: Preços sincronizados com sucesso!";
             }, 1000);
         }
@@ -296,7 +364,7 @@
         }
 
         // Renderização Inicial
-        renderProducts(products);
+        applyFilters();
     </script>
 </body>
 </html>
